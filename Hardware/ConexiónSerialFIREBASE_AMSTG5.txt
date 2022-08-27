@@ -1,0 +1,34 @@
+#Importación de la librería SERIAL para la comunicación por serial con el arduino y de la librería FIREBASE para
+#la conexión con la base de datos
+import serial, time
+from firebase import firebase
+#Configuración del puerto serial COM6 con arduino IDE
+arduino=serial.Serial('COM6',9600)
+time.sleep(2)
+#Lectura de la distancia, estado de mascarilla, fecha y hora que son enviados por el puerto serial desde ARDUINO hacia
+#este IDE de PYCHARM y su posterior conversión en datos de 20 bits
+lecturaDistancia = arduino.readline()
+arduino.write(b'20')
+lecturaEstado = arduino.readline()
+arduino.write(b'20')
+lecturaFecha = arduino.readline()
+arduino.write(b'20')
+lecturaHora= arduino.readline()
+arduino.write(b'20')
+#Decodificación de las lecturas enviadas por SERIAL en formato STRING para una correcta lectura de los datos
+distancia=lecturaDistancia.decode()
+estado=lecturaEstado.decode()
+fecha=lecturaFecha.decode()
+hora=lecturaHora.decode()
+#Conexión con la base de datos en FIREBASE
+firebase = firebase.FirebaseApplication('https://emaskg5-default-rtdb.firebaseio.com', None)
+#Estructura del formato para el envío de los datos hacia FIREBASE
+datos={
+    'Distancia': distancia,
+    'Estado': estado,
+    'Fecha:':fecha,
+    'Hora:': hora
+}
+#Método POST para subir los datos hacia FIREBASE siguiendo la estructura anterior
+resultado=firebase.post('RegistroDatos/SmartGuard1',datos)
+arduino.close()

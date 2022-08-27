@@ -1,0 +1,126 @@
+//Instalación de librerías para el módulo RTC y control del STEPPER
+#include <Stepper.h>
+#include <Wire.h>
+#include "RTClib.h"
+
+//Configuración de los pasos en el motor STEPPER
+Stepper motor1(2048, 8, 10, 9, 11);
+//Declaración de los pines en el arduino MEGA
+RTC_DS1307 rtc;
+int TRIG=5;
+int ECO=4;
+int LED=3;
+int PULSADOR=6;
+int DURACION;
+int DISTANCIA;
+int BUZZER=2;
+int LED_ROJO=42;
+int LED_VERDE=38;
+int LED_AMARILLO=40;
+int ANALOG_BATERIA=0;
+String ESTADO_MASK="CERRADA";
+int analogValor=0;
+float voltaje=0;
+
+// Umbrales para la medición del voltaje en la batería
+float maximo=1.5;
+float medio=1;
+float minimo=0;
+
+
+void setup() {
+  //Sincronización del módulo RTC con el tiempo actual de la computadora a utilizar
+  rtc.begin();
+  rtc.adjust(DateTime(F(__DATE__),F(__TIME__)));
+  //Configuración de los pines como entradas o salidas
+  pinMode(TRIG, OUTPUT);
+  pinMode(ECO, INPUT);
+  pinMode(LED, OUTPUT);
+  pinMode(PULSADOR,INPUT);
+  pinMode(BUZZER, OUTPUT);
+  motor1.setSpeed(2); //Configuración de la velocidad de giro del motor
+  Serial.begin(9600);
+}
+
+void loop() {
+  //Lectura del voltaje de la batería
+  analogValor=analogRead(ANALOG_BATERIA);
+  //Conversión del voltaje según el datasheet del motor
+  voltaje=0.0048*analogValor;
+  //Serial.println(analogValor);
+  //Serial.print("Voltaje: ");
+  //Serial.println(voltaje);
+
+  // Dependiendo del voltaje mostramos un LED u otro
+  if(voltaje>=(0.3*maximo)){
+    digitalWrite(LED_VERDE,HIGH);
+    delay(2000);
+    digitalWrite(LED_VERDE,LOW);
+    }
+  if(voltaje<(0.3*maximo)){
+    digitalWrite(LED_AMARILLO, HIGH);
+    delay(2000);
+    digitalWrite(LED_AMARILLO, LOW);
+    }
+  if(voltaje==minimo){
+    digitalWrite(LED_ROJO, HIGH);
+    delay(2000);
+    digitalWrite(LED_ROJO, LOW);
+    }
+  //Sensor ultrasónico y sus lecturas de onda para la obtención de la distancia
+  digitalWrite(TRIG, HIGH);
+  delay(1);
+  digitalWrite(TRIG, LOW);
+  DURACION=pulseIn(ECO, HIGH);
+  DISTANCIA=DURACION/58.2; //Fórmula obtenida del datasheet del sensor ultrasónico para la conversión a distancia
+  Serial.println(DISTANCIA);
+  delay(200);
+
+  //Casos de uso para el encendido de la alarma por proximidad insegura
+  if(DISTANCIA <= 30 && DISTANCIA >=0){
+    digitalWrite(LED, HIGH);
+    digitalWrite(BUZZER, HIGH);
+    delay(DISTANCIA*10);
+    digitalWrite(LED, LOW);
+    digitalWrite(BUZZER, LOW);
+  }
+  //Serial.println(digitalRead(6));
+
+  //Movimiento manual del motor por el push button
+  if(digitalRead(PULSADOR) == HIGH){
+    motor1.step(512);
+    delay(500);
+    if(ESTADO_MASK=="CERRADA"){
+      ESTADO_MASK="ABIERTA";
+      }else{
+      ESTADO_MASK="CERRADA";
+      }
+  }
+  Serial.println(ESTADO_MASK);
+  mostrarFecha();
+  mostrarHora();
+}
+
+//Función para mostrar la fecha en el monitor serial
+void mostrarFecha(){
+  DateTime ahora= rtc.now();
+  char _bufferFecha[12];
+  formatoFecha(_bufferFecha, ahora.day(), ahora.month(), ahora.year());
+  Serial.println(_bufferFecha);
+  }
+
+//Función para mostrar la hora en el monitor serial
+void mostrarHora(){
+  DateTime ahora= rtc.now();
+  char _buefferHora[10];
+  formatoHora(_buefferHora, ahora.hour(), ahora.minute(), ahora.second());
+  Serial.println(_buefferHora);
+  }
+//Función para establecer un formato adecuado para la fecha
+void formatoFecha(char bufferFecha[12], int numDia, int numMes, int numA){
+  sprintf(bufferFecha, "%02d/%02d/%04d", numDia, numMes, numA);
+  }
+//Función para establecer un formato adecuado para la hora
+void formatoHora(char bufferHora[10], int hora, int minu, int seg){
+  sprintf(bufferHora, "%02d:%02d:%02d", hora, minu, seg );
+  }
